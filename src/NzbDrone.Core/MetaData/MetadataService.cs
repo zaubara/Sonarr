@@ -26,6 +26,7 @@ namespace NzbDrone.Core.Metadata
         private readonly ICleanMetadataService _cleanMetadataService;
         private readonly IMediaFileService _mediaFileService;
         private readonly IEpisodeService _episodeService;
+        private readonly IDiskTransferService _diskTransferService;
         private readonly IDiskProvider _diskProvider;
         private readonly IHttpClient _httpClient;
         private readonly IMediaFileAttributeService _mediaFileAttributeService;
@@ -37,6 +38,7 @@ namespace NzbDrone.Core.Metadata
                                ICleanMetadataService cleanMetadataService,
                                IMediaFileService mediaFileService,
                                IEpisodeService episodeService,
+                               IDiskTransferService diskTransferService,
                                IDiskProvider diskProvider,
                                IHttpClient httpClient,
                                IMediaFileAttributeService mediaFileAttributeService,
@@ -48,6 +50,7 @@ namespace NzbDrone.Core.Metadata
             _cleanMetadataService = cleanMetadataService;
             _mediaFileService = mediaFileService;
             _episodeService = episodeService;
+            _diskTransferService = diskTransferService;
             _diskProvider = diskProvider;
             _httpClient = httpClient;
             _mediaFileAttributeService = mediaFileAttributeService;
@@ -188,7 +191,7 @@ namespace NzbDrone.Core.Metadata
                 var existingFullPath = Path.Combine(series.Path, existingMetadata.RelativePath);
                 if (!fullPath.PathEquals(existingFullPath))
                 {
-                    _diskProvider.MoveFile(existingFullPath, fullPath);
+                    _diskTransferService.TransferFileVerified(existingFullPath, fullPath, TransferMode.Move);
                     existingMetadata.RelativePath = episodeMetadata.RelativePath;
                 }
             }
@@ -240,7 +243,7 @@ namespace NzbDrone.Core.Metadata
                                    RelativePath = image.RelativePath
                                };
 
-                _diskProvider.CopyFile(image.Url, image.RelativePath);
+                _diskProvider.CopySingleFile(image.Url, image.RelativePath);
 
                 result.Add(metadata);
             }
@@ -309,7 +312,7 @@ namespace NzbDrone.Core.Metadata
                     var existingFullPath = Path.Combine(series.Path, existingMetadata.RelativePath);
                     if (!fullPath.PathEquals(existingFullPath))
                     {
-                        _diskProvider.MoveFile(fullPath, fullPath);
+                        _diskTransferService.TransferFileVerified(existingFullPath, fullPath, TransferMode.Move);
                         existingMetadata.RelativePath = image.RelativePath;
 
                         return new List<MetadataFile>{ existingMetadata };

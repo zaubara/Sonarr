@@ -25,7 +25,7 @@ namespace NzbDrone.Core.MediaFiles
         private readonly IEpisodeService _episodeService;
         private readonly IUpdateEpisodeFileService _updateEpisodeFileService;
         private readonly IBuildFileNames _buildFileNames;
-        private readonly IVerifiedFileTransferService _verifiedFileTransferService;
+        private readonly IDiskTransferService _diskTransferService;
         private readonly IDiskProvider _diskProvider;
         private readonly IMediaFileAttributeService _mediaFileAttributeService;
         private readonly IConfigService _configService;
@@ -34,7 +34,7 @@ namespace NzbDrone.Core.MediaFiles
         public EpisodeFileMovingService(IEpisodeService episodeService,
                                 IUpdateEpisodeFileService updateEpisodeFileService,
                                 IBuildFileNames buildFileNames,
-                                IVerifiedFileTransferService verifiedFileTransferService,
+                                IDiskTransferService diskTransferService,
                                 IDiskProvider diskProvider,
                                 IMediaFileAttributeService mediaFileAttributeService,
                                 IConfigService configService,
@@ -43,7 +43,7 @@ namespace NzbDrone.Core.MediaFiles
             _episodeService = episodeService;
             _updateEpisodeFileService = updateEpisodeFileService;
             _buildFileNames = buildFileNames;
-            _verifiedFileTransferService = verifiedFileTransferService;
+            _diskTransferService = diskTransferService;
             _diskProvider = diskProvider;
             _mediaFileAttributeService = mediaFileAttributeService;
             _configService = configService;
@@ -124,7 +124,7 @@ namespace NzbDrone.Core.MediaFiles
                 }
             }
 
-            _verifiedFileTransferService.TransferFileVerified(episodeFilePath, destinationFilename, mode);
+            _diskTransferService.TransferFileVerified(episodeFilePath, destinationFilename, mode);
 
             episodeFile.RelativePath = series.Path.GetRelativePath(destinationFilename);
 

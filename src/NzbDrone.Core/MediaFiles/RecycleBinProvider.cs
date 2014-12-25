@@ -22,13 +22,18 @@ namespace NzbDrone.Core.MediaFiles
 
     public class RecycleBinProvider : IHandleAsync<SeriesDeletedEvent>, IExecute<CleanUpRecycleBinCommand>, IRecycleBinProvider
     {
+        private readonly IDiskTransferService _diskTransferService;
         private readonly IDiskProvider _diskProvider;
         private readonly IConfigService _configService;
         private readonly Logger _logger;
 
 
-        public RecycleBinProvider(IDiskProvider diskProvider, IConfigService configService, Logger logger)
+        public RecycleBinProvider(IDiskTransferService diskTransferService,
+                                  IDiskProvider diskProvider,
+                                  IConfigService configService,
+                                  Logger logger)
         {
+            _diskTransferService = diskTransferService;
             _diskProvider = diskProvider;
             _configService = configService;
             _logger = logger;
@@ -106,7 +111,7 @@ namespace NzbDrone.Core.MediaFiles
                 }
 
                 _logger.Debug("Moving '{0}' to '{1}'", path, destination);
-                _diskProvider.MoveFile(path, destination, true);
+                _diskTransferService.TransferFileVerified(path, destination, TransferMode.Move);
 
                 //TODO: Better fix than this for non-Windows?
                 if (OsInfo.IsWindows)

@@ -67,7 +67,7 @@ namespace NzbDrone.Core.Metadata.Consumers.Wdtv
 
                     if (!newFilename.PathEquals(existingFilename))
                     {
-                        _diskProvider.MoveFile(existingFilename, newFilename);
+                        _diskProvider.MoveSingleFile(existingFilename, newFilename);
                         metadataFile.RelativePath = series.Path.GetRelativePath(newFilename);
 
                         updatedMetadataFiles.Add(metadataFile);

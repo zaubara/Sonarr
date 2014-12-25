@@ -4,30 +4,101 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NLog;
+using NzbDrone.Common.EnsureThat;
+using NzbDrone.Common.Extensions;
 
 namespace NzbDrone.Common.Disk
 {
-    public interface IVerifiedFileTransferService
+    public interface IDiskTransferService
     {
+        TransferMode TransferFolder(String sourcePath, String targetPath, TransferMode mode);
+        TransferMode TransferFolderVerified(String sourcePath, String targetPath, TransferMode mode);
+        TransferMode TransferFile(String sourcePath, String targetPath, TransferMode mode, bool overwrite = false);
         TransferMode TransferFileVerified(String sourcePath, String targetPath, TransferMode mode);
     }
 
-    public class VerifiedFileTransferService : IVerifiedFileTransferService
+    public class DiskTransferService : IDiskTransferService
     {
         private const Int32 RetryCount = 2;
 
         private readonly IDiskProvider _diskProvider;
         private readonly Logger _logger;
 
-        public VerifiedFileTransferService(IDiskProvider diskProvider, Logger logger)
+        public DiskTransferService(IDiskProvider diskProvider, Logger logger)
         {
             _diskProvider = diskProvider;
             _logger = logger;
         }
 
+        public TransferMode TransferFolder(String sourcePath, String targetPath, TransferMode mode)
+        {
+            // TODO: For now we just redirect to TransferFolder in diskprovider.
+            _diskProvider.TransferFolder(sourcePath, targetPath, mode);
+
+            return mode;
+        }
+
+        public TransferMode TransferFolderVerified(String sourcePath, String targetPath, TransferMode mode)
+        {
+            // TODO: For now we just redirect to TransferFolder in diskprovider.
+            _diskProvider.TransferFolder(sourcePath, targetPath, mode);
+
+            return mode;
+        }
+        
+        public TransferMode TransferFile(String sourcePath, String targetPath, TransferMode mode, bool overwrite = false)
+        {
+            Ensure.That(sourcePath, () => sourcePath).IsValidPath();
+            Ensure.That(targetPath, () => targetPath).IsValidPath();
+
+            _logger.Debug("{0} [{1}] > [{2}]", mode, sourcePath, targetPath);
+
+            if (sourcePath.PathEquals(targetPath))
+            {
+                _logger.Warn("Source and destination can't be the same {0}", sourcePath);
+                return TransferMode.None;
+            }
+
+            if (_diskProvider.FileExists(targetPath) && overwrite)
+            {
+                _diskProvider.DeleteFile(targetPath);
+            }
+
+            if (mode.HasFlag(TransferMode.HardLink))
+            {
+                bool createdHardlink = _diskProvider.TryCreateHardLink(sourcePath, targetPath);
+                if (createdHardlink)
+                {
+                    return TransferMode.HardLink;
+                }
+                if (!mode.HasFlag(TransferMode.Copy))
+                {
+                    throw new IOException("Hardlinking from '" + sourcePath + "' to '" + targetPath + "' failed.");
+                }
+            }
+
+            if (mode.HasFlag(TransferMode.Copy))
+            {
+                _diskProvider.MoveSingleFile(sourcePath, targetPath);
+                File.Copy(sourcePath, targetPath, overwrite);
+                return TransferMode.Copy;
+            }
+
+            if (mode.HasFlag(TransferMode.Move))
+            {
+                _diskProvider.MoveSingleFile(sourcePath, targetPath);
+                return TransferMode.Move;
+            }
+
+            return TransferMode.None;
+        }
+
         public TransferMode TransferFileVerified(String sourcePath, String targetPath, TransferMode mode)
         {
-            _logger.Debug("{0} [{1}] > [{2}]", mode, sourcePath, targetPath);
+            Ensure.That(sourcePath, () => sourcePath).IsValidPath();
+            Ensure.That(targetPath, () => targetPath).IsValidPath();
+
+            _logger.Debug("{0}Verified [{1}] > [{2}]", mode, sourcePath, targetPath);
 
             if (sourcePath.PathEquals(targetPath))
             {
@@ -68,7 +139,7 @@ namespace NzbDrone.Common.Disk
 
             for (var i = 0; i <= RetryCount; i++)
             {
-                var result = _diskProvider.TransferFile(sourcePath, targetPath, TransferMode.Copy);
+                _diskProvider.CopySingleFile(sourcePath, targetPath);
 
                 var targetSize = _diskProvider.GetFileSize(targetPath);
 
@@ -113,7 +184,7 @@ namespace NzbDrone.Common.Disk
                 _logger.Trace("Attempting to move hardlinked backup.");
                 if (_diskProvider.TryCreateHardLink(sourcePath, backupPath))
                 {
-                    var result = _diskProvider.TransferFile(backupPath, targetPath, TransferMode.Move);
+                    _diskProvider.MoveSingleFile(backupPath, targetPath);
 
                     var targetSize = _diskProvider.GetFileSize(targetPath);
 

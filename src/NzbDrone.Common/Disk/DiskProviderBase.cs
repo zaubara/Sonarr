@@ -220,7 +220,11 @@ namespace NzbDrone.Common.Disk
 
                 Logger.ProgressDebug("{0} {1} -> {2}", mode, sourceFile, destFile);
 
-                TransferFile(sourceFile.FullName, destFile, mode, true);
+                // TODO: I'm not happy with this at all. We should move TransferFolder to the DiskTransferService too.
+                if (mode == TransferMode.Copy)
+                    CopySingleFile(sourceFile.FullName, destFile, true);
+                else
+                    MoveSingleFile(sourceFile.FullName, destFile, true);
             }
         }
 
@@ -234,17 +238,7 @@ namespace NzbDrone.Common.Disk
             File.Delete(path);
         }
 
-        public void CopyFile(string source, string destination, bool overwrite = false)
-        {
-            TransferFile(source, destination, TransferMode.Copy, overwrite);
-        }
-
-        public void MoveFile(string source, string destination, bool overwrite = false)
-        {
-            TransferFile(source, destination, TransferMode.Move, overwrite);
-        }
-
-        public TransferMode TransferFile(string source, string destination, TransferMode mode, bool overwrite)
+        public void CopySingleFile(string source, string destination, bool overwrite = false)
         {
             Ensure.That(source, () => source).IsValidPath();
             Ensure.That(destination, () => destination).IsValidPath();
@@ -252,7 +246,21 @@ namespace NzbDrone.Common.Disk
             if (source.PathEquals(destination))
             {
                 Logger.Warn("Source and destination can't be the same {0}", source);
-                return TransferMode.None;
+                return;
+            }
+
+            File.Copy(source, destination, overwrite);
+        }
+
+        public void MoveSingleFile(string source, string destination, bool overwrite = false)
+        {
+            Ensure.That(source, () => source).IsValidPath();
+            Ensure.That(destination, () => destination).IsValidPath();
+
+            if (source.PathEquals(destination))
+            {
+                Logger.Warn("Source and destination can't be the same {0}", source);
+                return;
             }
 
             if (FileExists(destination) && overwrite)
@@ -260,33 +268,8 @@ namespace NzbDrone.Common.Disk
                 DeleteFile(destination);
             }
 
-            if (mode.HasFlag(TransferMode.HardLink))
-            {
-                bool createdHardlink = TryCreateHardLink(source, destination);
-                if (createdHardlink)
-                {
-                    return TransferMode.HardLink;
-                }
-                if (!mode.HasFlag(TransferMode.Copy))
-                {
-                    throw new IOException("Hardlinking from '" + source + "' to '" + destination + "' failed.");
-                }
-            }
-
-            if (mode.HasFlag(TransferMode.Copy))
-            {
-                File.Copy(source, destination, overwrite);
-                return TransferMode.Copy;
-            }
-
-            if (mode.HasFlag(TransferMode.Move))
-            {
-                RemoveReadOnly(source);
-                File.Move(source, destination);
-                return TransferMode.Move;
-            }
-
-            return TransferMode.None;
+            RemoveReadOnly(source);
+            File.Move(source, destination);
         }
 
         public abstract bool TryCreateHardLink(string source, string destination);

@@ -9,10 +9,10 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Test.Common;
 using FluentAssertions;
 
-namespace NzbDrone.Common.Test.DiskProviderTests
+namespace NzbDrone.Common.Test.DiskTests
 {
     [TestFixture]
-    public class VerifiedFileTransferServiceFixture : TestBase<VerifiedFileTransferService>
+    public class DiskTransferServiceFixture : TestBase<DiskTransferService>
     {
         private readonly String _sourcePath = @"C:\source\my.video.mkv".AsOsAgnostic();
         private readonly String _targetPath = @"C:\target\my.video.mkv".AsOsAgnostic();
@@ -21,10 +21,6 @@ namespace NzbDrone.Common.Test.DiskProviderTests
         [SetUp]
         public void SetUp()
         {
-            Mocker.GetMock<IDiskProvider>()
-                .Setup(v => v.TransferFile(It.IsAny<String>(), It.IsAny<String>(), It.IsAny<TransferMode>(), false))
-                .Returns<String, String, TransferMode, Boolean>((s,t,m,o) => m);
-
             Mocker.GetMock<IDiskProvider>()
                 .Setup(v => v.GetFileSize(_sourcePath))
                 .Returns(1000);
@@ -53,7 +49,7 @@ namespace NzbDrone.Common.Test.DiskProviderTests
 
             var retry = 0;
             Mocker.GetMock<IDiskProvider>()
-                .Setup(v => v.TransferFile(_sourcePath, _targetPath, TransferMode.Copy, false))
+                .Setup(v => v.CopySingleFile(_sourcePath, _targetPath, false))
                 .Callback(() =>
                     {
                         if (retry++ == 1) WithCompletedTransfer();
@@ -71,7 +67,7 @@ namespace NzbDrone.Common.Test.DiskProviderTests
 
             var retry = 0;
             Mocker.GetMock<IDiskProvider>()
-                .Setup(v => v.TransferFile(_sourcePath, _targetPath, TransferMode.Copy, false))
+                .Setup(v => v.CopySingleFile(_sourcePath, _targetPath, false))
                 .Callback(() =>
                     {
                         if (retry++ == 3) throw new Exception("Test Failed, retried too many times.");
@@ -121,7 +117,7 @@ namespace NzbDrone.Common.Test.DiskProviderTests
                     });
 
             Mocker.GetMock<IDiskProvider>()
-                .Setup(v => v.TransferFile(_backupPath, _targetPath, TransferMode.Move, false))
+                .Setup(v => v.MoveSingleFile(_backupPath, _targetPath, false))
                 .Throws(new IOException("Blackbox IO error"));
 
             Assert.Throws<IOException>(() => Subject.TransferFileVerified(_sourcePath, _targetPath, TransferMode.Move));
@@ -140,10 +136,78 @@ namespace NzbDrone.Common.Test.DiskProviderTests
             var result = Subject.TransferFileVerified(_sourcePath, _targetPath, TransferMode.Move);
 
             Mocker.GetMock<IDiskProvider>()
-                .Verify(v => v.TransferFile(_sourcePath, _targetPath, TransferMode.Copy, false), Times.Once());
+                .Verify(v => v.CopySingleFile(_sourcePath, _targetPath, false), Times.Once());
 
             VerifyDeletedFile(_sourcePath);
         }
+
+        /*
+        [Test]
+        public void should_be_able_to_hardlink_file()
+        {
+            var sourceDir = GetTempFilePath();
+            var source = Path.Combine(sourceDir, "test.txt");
+            var destination = Path.Combine(sourceDir, "destination.txt");
+
+            Directory.CreateDirectory(sourceDir);
+
+            Subject.WriteAllText(source, "SourceFile");
+
+            var result = Subject.TransferFile(source, destination, TransferMode.HardLink);
+
+            result.Should().Be(TransferMode.HardLink);
+
+            File.AppendAllText(source, "Test");
+            File.ReadAllText(destination).Should().Be("SourceFileTest");
+        }
+
+        private void DoHardLinkRename(FileShare fileShare)
+        {
+            var sourceDir = GetTempFilePath();
+            var source = Path.Combine(sourceDir, "test.txt");
+            var destination = Path.Combine(sourceDir, "destination.txt");
+            var rename = Path.Combine(sourceDir, "rename.txt");
+
+            Directory.CreateDirectory(sourceDir);
+
+            Subject.WriteAllText(source, "SourceFile");
+
+            Subject.TransferFile(source, destination, TransferMode.HardLink);
+
+            using (var stream = new FileStream(source, FileMode.Open, FileAccess.Read, fileShare))
+            {
+                stream.ReadByte();
+
+                Subject.MoveSingleFile(destination, rename);
+
+                stream.ReadByte();
+            }
+
+            File.Exists(rename).Should().BeTrue();
+            File.Exists(destination).Should().BeFalse();
+
+            File.AppendAllText(source, "Test");
+            File.ReadAllText(rename).Should().Be("SourceFileTest");
+        }
+
+        [Test]
+        public void should_be_able_to_rename_open_hardlinks_with_fileshare_delete()
+        {
+            DoHardLinkRename(FileShare.Delete);
+        }
+
+        [Test]
+        public void should_not_be_able_to_rename_open_hardlinks_with_fileshare_none()
+        {
+            Assert.Throws<IOException>(() => DoHardLinkRename(FileShare.None));
+        }
+
+        [Test]
+        public void should_not_be_able_to_rename_open_hardlinks_with_fileshare_write()
+        {
+            Assert.Throws<IOException>(() => DoHardLinkRename(FileShare.Read));
+        }
+        */
 
         private void WithSuccessfulHardlink()
         {

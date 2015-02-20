@@ -168,66 +168,6 @@ namespace NzbDrone.Common.Disk
             Directory.CreateDirectory(path);
         }
 
-        public void CopyFolder(string source, string destination)
-        {
-            Ensure.That(source, () => source).IsValidPath();
-            Ensure.That(destination, () => destination).IsValidPath();
-
-            TransferFolder(source, destination, TransferMode.Copy);
-        }
-
-        public void MoveFolder(string source, string destination)
-        {
-            Ensure.That(source, () => source).IsValidPath();
-            Ensure.That(destination, () => destination).IsValidPath();
-
-            try
-            {
-                TransferFolder(source, destination, TransferMode.Move);
-                DeleteFolder(source, true);
-            }
-            catch (Exception e)
-            {
-                e.Data.Add("Source", source);
-                e.Data.Add("Destination", destination);
-                throw;
-            }
-        }
-
-        public void TransferFolder(string source, string destination, TransferMode mode)
-        {
-            Ensure.That(source, () => source).IsValidPath();
-            Ensure.That(destination, () => destination).IsValidPath();
-
-            Logger.ProgressDebug("{0} {1} -> {2}", mode, source, destination);
-
-            var sourceFolder = new DirectoryInfo(source);
-            var targetFolder = new DirectoryInfo(destination);
-
-            if (!targetFolder.Exists)
-            {
-                targetFolder.Create();
-            }
-
-            foreach (var subDir in sourceFolder.GetDirectories())
-            {
-                TransferFolder(subDir.FullName, Path.Combine(destination, subDir.Name), mode);
-            }
-
-            foreach (var sourceFile in sourceFolder.GetFiles("*.*", SearchOption.TopDirectoryOnly))
-            {
-                var destFile = Path.Combine(destination, sourceFile.Name);
-
-                Logger.ProgressDebug("{0} {1} -> {2}", mode, sourceFile, destFile);
-
-                // TODO: I'm not happy with this at all. We should move TransferFolder to the DiskTransferService too.
-                if (mode == TransferMode.Copy)
-                    CopySingleFile(sourceFile.FullName, destFile, true);
-                else
-                    MoveSingleFile(sourceFile.FullName, destFile, true);
-            }
-        }
-
         public void DeleteFile(string path)
         {
             Ensure.That(path, () => path).IsValidPath();

@@ -25,9 +25,6 @@ namespace NzbDrone.Common.Disk
         long GetFolderSize(string path);
         long GetFileSize(string path);
         void CreateFolder(string path);
-        void CopyFolder(string source, string destination);
-        void MoveFolder(string source, string destination);
-        void TransferFolder(string source, string destination, TransferMode transferMode);
         void DeleteFile(string path);
         void CopySingleFile(string source, string destination, bool overwrite = false);
         void MoveSingleFile(string source, string destination, bool overwrite = false);

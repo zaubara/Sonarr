@@ -56,7 +56,7 @@ namespace NzbDrone.Core.MediaFiles
                 var destination = Path.Combine(recyclingBin, new DirectoryInfo(path).Name);
 
                 _logger.Debug("Moving '{0}' to '{1}'", path, destination);
-                _diskProvider.MoveFolder(path, destination);
+                _diskTransferService.TransferFolderVerified(path, destination, TransferMode.Move);
 
                 _logger.Debug("Setting last accessed: {0}", path);
                 _diskProvider.FolderSetLastWriteTime(destination, DateTime.UtcNow);

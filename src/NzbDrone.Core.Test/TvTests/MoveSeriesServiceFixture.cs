@@ -39,8 +39,8 @@ namespace NzbDrone.Core.Test.TvTests
 
         private void GivenFailedMove()
         {
-            Mocker.GetMock<IDiskProvider>()
-                  .Setup(s => s.MoveFolder(It.IsAny<String>(), It.IsAny<String>()))
+            Mocker.GetMock<IDiskTransferService>()
+                  .Setup(s => s.TransferFolderVerified(It.IsAny<String>(), It.IsAny<String>(), TransferMode.Move))
                   .Throws<IOException>();
         }
 

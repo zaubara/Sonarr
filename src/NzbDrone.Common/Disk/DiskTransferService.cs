@@ -32,19 +32,68 @@ namespace NzbDrone.Common.Disk
 
         public TransferMode TransferFolder(String sourcePath, String targetPath, TransferMode mode)
         {
-            // TODO: For now we just redirect to TransferFolder in diskprovider.
-            _diskProvider.TransferFolder(sourcePath, targetPath, mode);
+            Ensure.That(sourcePath, () => sourcePath).IsValidPath();
+            Ensure.That(targetPath, () => targetPath).IsValidPath();
 
-            return mode;
+            if (!_diskProvider.FolderExists(targetPath))
+            {
+                _diskProvider.CreateFolder(targetPath);
+            }
+
+            var result = mode;
+
+            foreach (var subDir in _diskProvider.GetDirectoryInfos(sourcePath))
+            {
+                result &= TransferFolder(subDir.FullName, Path.Combine(targetPath, subDir.Name), mode);
+            }
+
+            foreach (var sourceFile in _diskProvider.GetFileInfos(sourcePath))
+            {
+                var destFile = Path.Combine(targetPath, sourceFile.Name);
+
+                result &= TransferFile(sourceFile.FullName, destFile, mode, true);
+            }
+
+            if (mode.HasFlag(TransferMode.Move))
+            {
+                _diskProvider.DeleteFolder(sourcePath, true);
+            }
+
+            return result;
         }
 
         public TransferMode TransferFolderVerified(String sourcePath, String targetPath, TransferMode mode)
         {
-            // TODO: For now we just redirect to TransferFolder in diskprovider.
-            _diskProvider.TransferFolder(sourcePath, targetPath, mode);
+            Ensure.That(sourcePath, () => sourcePath).IsValidPath();
+            Ensure.That(targetPath, () => targetPath).IsValidPath();
 
-            return mode;
+            if (!_diskProvider.FolderExists(targetPath))
+            {
+                _diskProvider.CreateFolder(targetPath);
+            }
+
+            var result = mode;
+
+            foreach (var subDir in _diskProvider.GetDirectoryInfos(sourcePath))
+            {
+                result &= TransferFolderVerified(subDir.FullName, Path.Combine(targetPath, subDir.Name), mode);
+            }
+
+            foreach (var sourceFile in _diskProvider.GetFileInfos(sourcePath))
+            {
+                var destFile = Path.Combine(targetPath, sourceFile.Name);
+
+                result &= TransferFileVerified(sourceFile.FullName, destFile, mode);
+            }
+
+            if (mode.HasFlag(TransferMode.Move))
+            {
+                _diskProvider.DeleteFolder(sourcePath, true);
+            }
+
+            return result;
         }
+
         
         public TransferMode TransferFile(String sourcePath, String targetPath, TransferMode mode, bool overwrite = false)
         {
@@ -79,8 +128,7 @@ namespace NzbDrone.Common.Disk
 
             if (mode.HasFlag(TransferMode.Copy))
             {
-                _diskProvider.MoveSingleFile(sourcePath, targetPath);
-                File.Copy(sourcePath, targetPath, overwrite);
+                _diskProvider.CopySingleFile(sourcePath, targetPath);
                 return TransferMode.Copy;
             }
 

@@ -141,73 +141,85 @@ namespace NzbDrone.Common.Test.DiskTests
             VerifyDeletedFile(_sourcePath);
         }
 
-        /*
         [Test]
-        public void should_be_able_to_hardlink_file()
+        public void CopyFolder_should_copy_folder()
         {
-            var sourceDir = GetTempFilePath();
-            var source = Path.Combine(sourceDir, "test.txt");
-            var destination = Path.Combine(sourceDir, "destination.txt");
+            WithRealDiskProvider();
 
-            Directory.CreateDirectory(sourceDir);
+            var source = GetFilledTempFolder();
+            var destination = new DirectoryInfo(GetTempFilePath());
 
-            Subject.WriteAllText(source, "SourceFile");
+            Subject.TransferFolder(source.FullName, destination.FullName, TransferMode.Copy);
 
-            var result = Subject.TransferFile(source, destination, TransferMode.HardLink);
-
-            result.Should().Be(TransferMode.HardLink);
-
-            File.AppendAllText(source, "Test");
-            File.ReadAllText(destination).Should().Be("SourceFileTest");
-        }
-
-        private void DoHardLinkRename(FileShare fileShare)
-        {
-            var sourceDir = GetTempFilePath();
-            var source = Path.Combine(sourceDir, "test.txt");
-            var destination = Path.Combine(sourceDir, "destination.txt");
-            var rename = Path.Combine(sourceDir, "rename.txt");
-
-            Directory.CreateDirectory(sourceDir);
-
-            Subject.WriteAllText(source, "SourceFile");
-
-            Subject.TransferFile(source, destination, TransferMode.HardLink);
-
-            using (var stream = new FileStream(source, FileMode.Open, FileAccess.Read, fileShare))
-            {
-                stream.ReadByte();
-
-                Subject.MoveSingleFile(destination, rename);
-
-                stream.ReadByte();
-            }
-
-            File.Exists(rename).Should().BeTrue();
-            File.Exists(destination).Should().BeFalse();
-
-            File.AppendAllText(source, "Test");
-            File.ReadAllText(rename).Should().Be("SourceFileTest");
+            VerifyCopyFolder(source.FullName, destination.FullName);
         }
 
         [Test]
-        public void should_be_able_to_rename_open_hardlinks_with_fileshare_delete()
+        public void CopyFolder_should_overwrite_existing_folder()
         {
-            DoHardLinkRename(FileShare.Delete);
+            WithRealDiskProvider();
+
+            var source = GetFilledTempFolder();
+            var destination = new DirectoryInfo(GetTempFilePath());
+            Subject.TransferFolder(source.FullName, destination.FullName, TransferMode.Copy);
+
+            //Delete Random File
+            destination.GetFiles("*.*", SearchOption.AllDirectories).First().Delete();
+
+            Subject.TransferFolder(source.FullName, destination.FullName, TransferMode.Copy);
+
+            VerifyCopyFolder(source.FullName, destination.FullName);
+        }
+
+
+        [Test]
+        public void MoveFolder_should_move_folder()
+        {
+            WithRealDiskProvider();
+
+            var original = GetFilledTempFolder();
+            var source = new DirectoryInfo(GetTempFilePath());
+            var destination = new DirectoryInfo(GetTempFilePath());
+
+            Subject.TransferFolder(original.FullName, source.FullName, TransferMode.Copy);
+
+            Subject.TransferFolder(source.FullName, destination.FullName, TransferMode.Move);
+
+            VerifyMoveFolder(original.FullName, source.FullName, destination.FullName);
         }
 
         [Test]
-        public void should_not_be_able_to_rename_open_hardlinks_with_fileshare_none()
+        public void MoveFolder_should_overwrite_existing_folder()
         {
-            Assert.Throws<IOException>(() => DoHardLinkRename(FileShare.None));
+            WithRealDiskProvider();
+
+            var original = GetFilledTempFolder();
+            var source = new DirectoryInfo(GetTempFilePath());
+            var destination = new DirectoryInfo(GetTempFilePath());
+
+            Subject.TransferFolder(original.FullName, source.FullName, TransferMode.Copy);
+            Subject.TransferFolder(original.FullName, destination.FullName, TransferMode.Copy);
+
+            Subject.TransferFolder(source.FullName, destination.FullName, TransferMode.Move);
+
+            VerifyMoveFolder(original.FullName, source.FullName, destination.FullName);
         }
 
-        [Test]
-        public void should_not_be_able_to_rename_open_hardlinks_with_fileshare_write()
+        public DirectoryInfo GetFilledTempFolder()
         {
-            Assert.Throws<IOException>(() => DoHardLinkRename(FileShare.Read));
+            var tempFolder = GetTempFilePath();
+            Directory.CreateDirectory(tempFolder);
+
+            File.WriteAllText(Path.Combine(tempFolder, Path.GetRandomFileName()), "RootFile");
+
+            var subDir = Path.Combine(tempFolder, Path.GetRandomFileName());
+            Directory.CreateDirectory(subDir);
+
+            File.WriteAllText(Path.Combine(subDir, Path.GetRandomFileName()), "SubFile1");
+            File.WriteAllText(Path.Combine(subDir, Path.GetRandomFileName()), "SubFile2");
+
+            return new DirectoryInfo(tempFolder);
         }
-        */
 
         private void WithSuccessfulHardlink()
         {
@@ -228,6 +240,67 @@ namespace NzbDrone.Common.Test.DiskTests
             Mocker.GetMock<IDiskProvider>()
                 .Setup(v => v.GetFileSize(_targetPath))
                 .Returns(900);
+        }
+
+        private void WithRealDiskProvider()
+        {
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.FolderExists(It.IsAny<string>()))
+                .Returns<string>(v => Directory.Exists(v));
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.FileExists(It.IsAny<string>()))
+                .Returns<string>(v => File.Exists(v));
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.CreateFolder(It.IsAny<string>()))
+                .Callback<string>(v => Directory.CreateDirectory(v));
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.DeleteFolder(It.IsAny<string>(), It.IsAny<bool>()))
+                .Callback<string, bool>((v,r) => Directory.Delete(v, r));
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.DeleteFile(It.IsAny<string>()))
+                .Callback<string>(v => File.Delete(v));
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.GetDirectoryInfos(It.IsAny<string>()))
+                .Returns<string>(v => new DirectoryInfo(v).GetDirectories().ToList());
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.GetFileInfos(It.IsAny<string>()))
+                .Returns<string>(v => new DirectoryInfo(v).GetFiles().ToList());
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.CopySingleFile(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Callback<string, string, bool>((s, d, o) => File.Copy(s, d, o));
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(v => v.MoveSingleFile(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Callback<string, string, bool>((s,d,o) => {
+                    if (File.Exists(d) && o) File.Delete(d);
+                    File.Move(s, d);
+                });
+            
+        }
+
+        private void VerifyCopyFolder(string source, string destination)
+        {
+            var sourceFiles = Directory.GetFileSystemEntries(source, "*", SearchOption.AllDirectories).Select(v => v.Substring(source.Length + 1)).ToArray();
+            var destFiles = Directory.GetFileSystemEntries(destination, "*", SearchOption.AllDirectories).Select(v => v.Substring(destination.Length + 1)).ToArray();
+
+            CollectionAssert.AreEquivalent(sourceFiles, destFiles);
+        }
+
+        private void VerifyMoveFolder(string source, string from, string destination)
+        {
+            Directory.Exists(from).Should().BeFalse();
+
+            var sourceFiles = Directory.GetFileSystemEntries(source, "*", SearchOption.AllDirectories).Select(v => v.Substring(source.Length + 1)).ToArray();
+            var destFiles = Directory.GetFileSystemEntries(destination, "*", SearchOption.AllDirectories).Select(v => v.Substring(destination.Length + 1)).ToArray();
+
+            CollectionAssert.AreEquivalent(sourceFiles, destFiles);
         }
 
         private void VerifyDeletedFile(String filePath)

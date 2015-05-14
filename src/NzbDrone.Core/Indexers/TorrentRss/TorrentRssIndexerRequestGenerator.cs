@@ -4,7 +4,7 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.IndexerSearch.Definitions;
 
-namespace NzbDrone.Core.Indexers.TorrentRssIndexer
+namespace NzbDrone.Core.Indexers.TorrentRss
 {
     public class TorrentRssIndexerRequestGenerator : IIndexerRequestGenerator
     {

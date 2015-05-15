@@ -441,7 +441,7 @@
     <Content Include="Files\Indexers\Newznab\newznab_nzb_su.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Files\Indexers\Omgwtfnzbs\omgwtfnzbs.xml">
+    <Content Include="Files\Indexers\Omgwtfnzbs\Omgwtfnzbs.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Files\Indexers\TorrentRss\ShowRSS.info.xml">

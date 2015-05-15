@@ -62,7 +62,7 @@ namespace NzbDrone.Core.Test.IndexerTests.TorrentRssIndexerTests
             torrentInfo.InfoUrl.Should().BeNullOrEmpty();
             torrentInfo.CommentUrl.Should().BeNullOrEmpty();
             torrentInfo.Indexer.Should().Be(Subject.Definition.Name);
-            torrentInfo.PublishDate.Should().Be(DateTime.Parse("2015-02-06 12:32:26"));
+            torrentInfo.PublishDate.Should().Be(DateTime.Parse("2015-02-06 13:32:26"));
             torrentInfo.Size.Should().Be(984078090);
             torrentInfo.InfoHash.Should().BeNullOrEmpty();
             torrentInfo.MagnetUrl.Should().BeNullOrEmpty();
